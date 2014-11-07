@@ -6,6 +6,7 @@ library(sets)
 args <- commandArgs(trailingOnly = TRUE)
 
 load.raw = function(file) {
+  cat('Begin load.raw')
   data = read.table(
     file=file,
     sep=';',
@@ -21,6 +22,7 @@ load.raw = function(file) {
 }
 
 df.to.comparable = function(df, doses) {
+  cat('Begin df.to.comparable')
   test = df[c(F,T),]
   test = data.frame(t(rbind(doses, test)))
   colnames(test) = c('dose', paste('x', 1:3, sep=''))
@@ -35,12 +37,14 @@ df.to.comparable = function(df, doses) {
 }
 
 melt.comparable.df = function(df) {
+  cat('Begin melt.comparable.df')
   result = melt(df, id.vars = c('dose'), variable.name='curve', value.name='response', level='sample')
   result = rename(result, c("Lsample"="sample"))
   result
 }
 
 drm.model = function(df) {
+  cat('Begin drm.model')
   mod.normal = LL.4(fixed = c(NA, NA, NA, NA), names=c("Slope","Lower Limit","Upper Limit", "ED50"))
   ref.df = df[df[,4]=='ref',]
   ref = drm(response~dose, data = ref.df, fct = mod.normal)
@@ -54,17 +58,20 @@ drm.model = function(df) {
 }
 
 data.list.from.file = function(file, dose) {
+  cat('Begin data.list.from.file')
   df.list = load.raw(file)
   df.list = lapply(df.list, df.to.comparable, dose)
   df.list
 }
 
 merged.model = function(df) {
+  cat('Begin merged.model')
   mod.normal = LL.4(fixed = c(NA, NA, NA, NA), names=c("Slope","Lower Limit","Upper Limit", "ED50"))
   drm(response~dose, curveid = sample, data = df, fct = mod.normal)
 }
 
 f.parallel.test = function(model.set) {
+  cat('Begin f.parallel.test')
   testFit = modelFit(model.set$test)
   sharedFit = modelFit(model.set$shared)
   RSS = testFit$RSS[2]
@@ -81,6 +88,7 @@ f.parallel.test = function(model.set) {
 }
 
 eq.parallel.test = function(model.set) {
+  cat('Begin eq.parallel.test')
   ref.ci = confint(model.set$ref)
   test.ci = confint(model.set$test)
   ref.slope = interval(ref.ci[1,1], ref.ci[1,2])
@@ -99,6 +107,7 @@ eq.parallel.test = function(model.set) {
 }
 
 point.stat.table = function(dose, df.list) {
+  cat('Begin point.stat.table')
   ref.point.mean = lapply(df.list, function(x) apply(x$ref[,2:4], 1, mean))
   ref.point.sd = lapply(df.list, function(x) apply(x$ref[,2:4], 1, sd))
   test.point.mean = lapply(df.list, function(x) apply(x$test[,2:4], 1, mean))
@@ -115,6 +124,7 @@ point.stat.table = function(dose, df.list) {
 }
 
 board.data = function(rp, test, coef, rfu, ab) {
+  cat('Begin board.data')
   list.with.names=function(rp, test, coef, rfu, ab) {
     list(rp = rp, test=test, coef = coef, rfu = rfu, ab=ab)
   }
@@ -122,6 +132,7 @@ board.data = function(rp, test, coef, rfu, ab) {
 }
 
 board.to.file = function(board, file) {
+  cat('Begin board.to.file')
   sink(file)
   cat('\t')
   write.table(round(as.data.frame(t(board$rp)),2), dec = ",", sep='\t', quote=F, row.names=c('RP'))
@@ -145,6 +156,7 @@ board.to.file = function(board, file) {
 }
 
 process = function(input.file, output.dir) {
+  cat('Begin process')
   dose = rev(c(100, 5, 2, 1, 0.5 , 0.25 , 0.1 , 0.05, 0.01, 0))
   file = input.file
   df.list = data.list.from.file(file, dose)
