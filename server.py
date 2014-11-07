@@ -82,11 +82,12 @@ def monkeyfunction(fname):
     command = "Rscript bioassay-roller.R %s %s/" % (os.path.abspath(file_path), os.path.abspath(results_dir))
     print(command)
     try:
-        result = run(cmd(command))
-        print("*** RESULT:")
-        for line in result:
-            print(line)
-        print("*** END OF RESULT")
+        run(cmd(command))
+        # result = run(cmd(command))
+        # print("*** RESULT:")
+        # for line in result:
+        #     print(line)
+        # print("*** END OF RESULT")
     except:
         print("Rscript internal error")
 
