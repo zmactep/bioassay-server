@@ -61,20 +61,26 @@ class UploadHandler(tornado.web.RequestHandler):
     def post(self):
         csv_file = self.request.files['csv_file'][0]
         original_fname = csv_file['filename']
-        fname = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-        final_filename = "%s-%s" % (fname, original_fname)
-        output_file = open(os.path.join(UPLOADS, final_filename), 'w')
-        output_file.write(csv_file['body'])
-        resultsZip = monkeyfunction(final_filename)
-        self.finish("<a href=\"results?zipfile=" + resultsZip +
-                    "\">Download</a> your results and be happy!<br />...or go <a href=\"/\">home</a>")
+        if original_fname.endswith(".csv"):
+            fname = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
+            final_filename = "%s-%s" % (fname, original_fname)
+            output_file = open(os.path.join(UPLOADS, final_filename), 'w')
+            output_file.write(csv_file['body'])
+            resultsZip = monkeyfunction(final_filename)
+            self.finish("<a href=\"results?zipfile=" + resultsZip +
+                        "\">Download</a> your results and be happy!<br />...or go <a href=\"/\">home</a>")
+        else:
+            self.finish("<h1>I don`t like yor file!</h1><br />Please go <a href=\"/\">home</a> and give me a CSV file.")
 
 
 def monkeyfunction(fname):
     file_path = os.path.join(UPLOADS, fname)
     results_dir = os.path.join(RESULTS, os.path.splitext(fname)[0])
     os.mkdir(results_dir)
-    shutil.copy(file_path, os.path.join(results_dir, fname))
+
+    # Your logic here
+    run(cmd("Rscript bioassay-roller.R %s %s/" % (file_path, results_dir)))
+
     results_zip = "%s.zip" % results_dir
     zipf = zipfile.ZipFile(results_zip, 'w')
     zipdir(results_dir + "/", zipf)
