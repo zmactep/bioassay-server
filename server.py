@@ -81,10 +81,14 @@ def monkeyfunction(fname):
     # Your logic here
     command = "Rscript bioassay-roller.R %s %s/" % (os.path.abspath(file_path), os.path.abspath(results_dir))
     print(command)
-    result = run(cmd(command))
-    print("*** RESULT:")
-    for line in result:
-        print(line)
+    try:
+        result = run(cmd(command))
+        print("*** RESULT:")
+        for line in result:
+            print(line)
+        print("*** END OF RESULT")
+    except:
+        print("Rscript internal error")
 
     results_zip = "%s.zip" % results_dir
     zipf = zipfile.ZipFile(results_zip, 'w')
