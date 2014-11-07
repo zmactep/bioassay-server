@@ -79,9 +79,9 @@ def monkeyfunction(fname):
     os.mkdir(results_dir)
 
     # Your logic here
-    code = cmd("Rscript bioassay-roller.R %s %s/" % (file_path, results_dir))
-    print(code)
-    run(code)
+    command = "Rscript bioassay-roller.R %s %s/" % (file_path, results_dir)
+    print(command)
+    run(cmd(command))
 
     results_zip = "%s.zip" % results_dir
     zipf = zipfile.ZipFile(results_zip, 'w')
