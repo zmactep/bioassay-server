@@ -1,7 +1,6 @@
 __author__ = 'pavel'
 
 import os
-import shutil
 import random
 import string
 import zipfile
