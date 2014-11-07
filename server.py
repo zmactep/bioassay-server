@@ -65,6 +65,7 @@ class UploadHandler(tornado.web.RequestHandler):
             final_filename = "%s-%s" % (fname, original_fname)
             output_file = open(os.path.join(UPLOADS, final_filename), 'w')
             output_file.write(csv_file['body'])
+            output_file.close()
             resultsZip = monkeyfunction(final_filename)
             self.finish("<a href=\"results?zipfile=" + resultsZip +
                         "\">Download</a> your results and be happy!<br />...or go <a href=\"/\">home</a>")
