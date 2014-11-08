@@ -37,8 +37,8 @@
                 <br />
                 <div class="lead">
                     <a href="#" id="make_good" class="btn btn-lg disabled btn-default">Сделать хорошо</a>
-                    <div id="aer" class="alert alert-danger invisible" role="alert"></div>
-                    <div id="ares" class="alert invisible" role="alert"></div>
+                    <div id="aer" class="alert alert-danger invisible" role="alert">для сохранения верстки</div>
+                    <div id="ares" class="alert invisible" role="alert">для сохранения верстки</div>
                 </div>
             </div>
 
@@ -67,6 +67,7 @@
         var serverRun = false;
 
         // Document elements
+        var body = $('body');
         var csv_file = $("#csv_file")[0];
         var alert_error = $("#aer");
         var alert_result = $("#ares");
@@ -74,8 +75,9 @@
         var div_lead = $("div.lead");
         var form = $("form")[0];
 
+
         // Update make_good button
-        $('body').on('change', 'input[type=file]', function(){
+        body.on('change', 'input[type=file]', function(){
             serverRun = false;
             alert_result.addClass("invisible");
             if (!csv_file.title.endsWith(".csv")) {
@@ -125,7 +127,7 @@
                     alert_result.html("Получаем данные");
                 }
                 if (xhr.readyState == 4) {
-                    form[0].reset()
+                    $('.file-input-wrapper')[0].getElementsByTagName('span')[0].innerHTML = DEFAULT_WORD;
                     serverRun = false;
                     if (xhr.status == 200) {
                         var data = JSON.parse(xhr.response.toString());

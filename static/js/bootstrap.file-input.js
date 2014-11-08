@@ -112,10 +112,7 @@ $.fn.bootstrapFileInput = function() {
 
       // Don't try to show the name if there is none
       if (!fileName) {
-        if (selectedFileNamePlacement === 'inside') {
-          $(this).siblings('span').html(DEFAULT_WORD);
-          $(this).attr('title', DEFAULT_WORD);
-        }
+        console.log("no name")
         return;
       }
 
