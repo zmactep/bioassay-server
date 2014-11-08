@@ -12,6 +12,8 @@
 */
 (function($) {
 
+  DEFAULT_WORD = 'Загрузить данные';
+
 $.fn.bootstrapFileInput = function() {
 
   this.each(function(i,elem){
@@ -33,7 +35,7 @@ $.fn.bootstrapFileInput = function() {
     }
 
     // Set the word to be displayed on the button
-    var buttonWord = 'Browse';
+    var buttonWord = DEFAULT_WORD;
 
     if (typeof $elem.attr('title') != 'undefined') {
       buttonWord = $elem.attr('title');
@@ -106,12 +108,17 @@ $.fn.bootstrapFileInput = function() {
         fileName = fileName.substring(fileName.lastIndexOf('\\') + 1, fileName.length);
       }
 
+      var selectedFileNamePlacement = $(this).data('filename-placement');
+
       // Don't try to show the name if there is none
       if (!fileName) {
+        if (selectedFileNamePlacement === 'inside') {
+          $(this).siblings('span').html(DEFAULT_WORD);
+          $(this).attr('title', DEFAULT_WORD);
+        }
         return;
       }
 
-      var selectedFileNamePlacement = $(this).data('filename-placement');
       if (selectedFileNamePlacement === 'inside') {
         // Print the fileName inside
         $(this).siblings('span').html(fileName);

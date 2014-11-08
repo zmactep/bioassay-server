@@ -125,6 +125,7 @@
                     alert_result.html("Получаем данные");
                 }
                 if (xhr.readyState == 4) {
+                    form[0].reset()
                     serverRun = false;
                     if (xhr.status == 200) {
                         var data = JSON.parse(xhr.response.toString());
