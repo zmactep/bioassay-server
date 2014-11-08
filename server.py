@@ -59,17 +59,22 @@ class DownloadHandler(tornado.web.RequestHandler):
 
 class UploadHandler(tornado.web.RequestHandler):
     def post(self):
+        print("Hey-hey-hey! New data arived!")
         csv_file = self.request.files['csv_file'][0]
         original_fname = csv_file['filename']
         if original_fname.endswith(".csv"):
+            print("Yeah! Data is good.")
             fname = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
             final_filename = "%s-%s" % (fname, original_fname)
             output_file = open(os.path.join(UPLOADS, final_filename), 'w')
             output_file.write(csv_file['body'])
             output_file.close()
+            print("Let our monkeys play with data (%s)." % final_filename)
             resultsZip = monkeyfunction(final_filename)
+            print("Monkeys are tired, let us send the respond.")
             self.finish('{"status" : "ok", "filename" : "%s"}' % resultsZip)
         else:
+            print("Data is bad :(")
             self.finish('{"status" : "error", "reason" : "file format"}')
 
 
@@ -83,7 +88,9 @@ def monkeyfunction(fname):
     command = "Rscript bioassay-roller.R %s %s/" % (os.path.abspath(file_path), os.path.abspath(results_dir))
     print(command)
     try:
-        run(cmd(command))
+        lines = run(cmd(command))
+        for _ in lines:
+            pass
     except:
         print("Rscript internal error")
 

@@ -37,7 +37,7 @@
                 <br />
                 <div class="lead">
                     <a href="#" id="make_good" class="btn btn-lg disabled btn-default">Сделать хорошо</a>
-                    <div id="aer" class="alert alert-danger invisible" role="alert">Файл не выбран или не является CSV</div>
+                    <div id="aer" class="alert alert-danger invisible" role="alert"></div>
                     <div id="ares" class="alert invisible" role="alert"></div>
                 </div>
             </div>
@@ -64,6 +64,7 @@
 
         // CVS file
         var file;
+        var serverRun = false;
 
         // Document elements
         var csv_file = $("#csv_file")[0];
@@ -75,6 +76,7 @@
 
         // Update make_good button
         $('body').on('change', 'input[type=file]', function(){
+            serverRun = false;
             alert_result.addClass("invisible");
             if (!csv_file.title.endsWith(".csv")) {
                 make_good.addClass("disabled");
@@ -89,6 +91,12 @@
         // Show error alert
         div_lead.mouseover(function(){
             if (make_good[0].classList.contains("disabled")) {
+                if (!serverRun) {
+                    alert_error.html("Файл не выбран или не является CSV")
+                }
+                else {
+                    alert_error.html("Проявите терпение, сервер скоро закончит думать")
+                }
                 alert_error.removeClass("invisible")
             }
         }).mouseout(function(){
@@ -97,28 +105,27 @@
 
         // Make statistics for a great good
         make_good.click(function(){
+            serverRun = true;
+            make_good.addClass("disabled");
+            alert_result.removeClass("invisible");
+            alert_result.addClass("alert-info");
+            alert_result.html("Сервер думает");
+
             var xhr = new XMLHttpRequest();
             xhr.onreadystatechange = stateChange;
             xhr.open('POST', '/upload', true);
             xhr.send(new FormData(form));
 
             function stateChange() {
-                alert_result.removeClass("invisible");
                 alert_result.removeClass("alert-info");
                 alert_result.removeClass("alert-danger");
                 alert_result.removeClass("alert-success");
-                if (xhr.readyState == 0) {
-                    alert_result.addClass("invisible");
-                }
-                if (xhr.readyState == 2) {
-                    alert_result.addClass("alert-info");
-                    alert_result.html("Сервер думает");
-                }
                 if (xhr.readyState == 3) {
                     alert_result.addClass("alert-info");
                     alert_result.html("Получаем данные");
                 }
                 if (xhr.readyState == 4) {
+                    serverRun = false;
                     if (xhr.status == 200) {
                         var data = JSON.parse(xhr.response.toString());
 
