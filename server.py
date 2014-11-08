@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 __author__ = 'pavel'
 
 import os
 import random
 import string
 import zipfile
+import shutil
 from iterpipes import cmd, run
 
 import tornado.httpserver
@@ -21,14 +23,18 @@ RESULTS = "results"
 
 class Application(tornado.web.Application):
     def __init__(self):
+        settings = {
+            'debug': True,
+            'static_path': 'static'
+        }
+
         handlers = [
             (r"/", IndexHandler),
             (r"/upload", UploadHandler),
             (r"/results", DownloadHandler),
-            (r"/.*\.jpg", StaticHandler),
             (r"/.*", Error404)
         ]
-        tornado.web.Application.__init__(self, handlers)
+        tornado.web.Application.__init__(self, handlers, **settings)
 
 
 class IndexHandler(tornado.web.RequestHandler):
@@ -39,11 +45,6 @@ class IndexHandler(tornado.web.RequestHandler):
 class Error404(tornado.web.RequestHandler):
     def get(self):
         self.render("404.html")
-
-
-class StaticHandler(tornado.web.RequestHandler):
-    def get(self):
-        sendfile(self, os.path.basename(self.request.uri))
 
 
 class DownloadHandler(tornado.web.RequestHandler):
@@ -67,15 +68,15 @@ class UploadHandler(tornado.web.RequestHandler):
             output_file.write(csv_file['body'])
             output_file.close()
             resultsZip = monkeyfunction(final_filename)
-            self.finish("<a href=\"results?zipfile=" + resultsZip +
-                        "\">Download</a> your results and be happy!<br />...or go <a href=\"/\">home</a>")
+            self.finish('{"status" : "ok", "filename" : "%s"}' % resultsZip)
         else:
-            self.finish("<h1>I don`t like yor file!</h1><br />Please go <a href=\"/\">home</a> and give me a CSV file.")
+            self.finish('{"status" : "error", "reason" : "file format"}')
 
 
 def monkeyfunction(fname):
     file_path = os.path.join(UPLOADS, fname)
-    results_dir = os.path.join(RESULTS, os.path.splitext(fname)[0])
+    basename = os.path.splitext(fname)[0]
+    results_dir = os.path.join(RESULTS, basename)
     os.mkdir(results_dir)
 
     # Your logic here
@@ -83,19 +84,20 @@ def monkeyfunction(fname):
     print(command)
     try:
         run(cmd(command))
-        # result = run(cmd(command))
-        # print("*** RESULT:")
-        # for line in result:
-        #     print(line)
-        # print("*** END OF RESULT")
     except:
         print("Rscript internal error")
 
-    results_zip = "%s.zip" % results_dir
+    # Copy input data too
+    shutil.copy(file_path, os.path.join(results_dir, os.path.basename(file_path)))
+
+    results_zip = "%s.zip" % basename
+    curdir = os.path.abspath(os.path.curdir)
+    os.chdir(RESULTS)
     zipf = zipfile.ZipFile(results_zip, 'w')
-    zipdir(results_dir + "/", zipf)
+    zipdir(basename + "/", zipf)
     zipf.close()
-    return results_zip
+    os.chdir(curdir)
+    return os.path.join(RESULTS, results_zip)
 
 
 def sendfile(self, file_name):

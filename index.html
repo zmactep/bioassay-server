@@ -1,14 +1,148 @@
 <!DOCTYPE html>
-<html>
-<head lang="en">
-    <meta charset="UTF-8">
-    <title>BIOCAD bioassay </title>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="static/favicon.ico">
+
+    <title>BIOCAD BioAssays analyser</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="static/css/cover.css" rel="stylesheet">
 </head>
+
 <body>
-    <h1>Upload your csv file and be happy!</h1>
-    <form enctype="multipart/form-data" action="/upload" method="post">
-        File: <input type="file" name="csv_file" />
-        <input type="submit" value="Upload" />
-    </form>
+
+<div class="site-wrapper">
+    <div class="site-wrapper-inner">
+        <div class="cover-container">
+            <div class="inner cover">
+                <h1 class="cover-heading">Добро пожаловать!</h1>
+                <p class="lead">
+                    Вы попали в <span style="color: #f5e79e">волшебное</span> место, где кривые становятся
+                    параллельными, тесты проходят, а проблемы решаются сами собой. Просто загрузите Ваш CSV файл с
+                    сырыми данными bioassay, и магия придет в Вашу жизнь!
+                </p>
+                <div align="center">
+                    <form method="post" action="/upload" enctype="multipart/form-data">
+                        <input type="file" id="csv_file" name="csv_file" data-filename-placement="inside" />
+                    </form>
+                </div>
+                <br />
+                <div class="lead">
+                    <a href="#" id="make_good" class="btn btn-lg disabled btn-default">Сделать хорошо</a>
+                    <div id="aer" class="alert alert-danger invisible" role="alert">Файл не выбран или не является CSV</div>
+                    <div id="ares" class="alert invisible" role="alert"></div>
+                </div>
+            </div>
+
+            <div class="mastfoot">
+                <div class="inner">
+                    <p>&copy; 2014, Паша и Рома, Департамент управления информационными потоками BIOCAD</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+<script src="static/js/bootstrap.min.js"></script>
+<script src="static/js/bootstrap.file-input.js"></script>
+<script>
+    $(document).ready(function(){
+        $('input[type=file]').bootstrapFileInput();
+
+        String.prototype.endsWith = function(suffix) {
+            return this.indexOf(suffix, this.length - suffix.length) !== -1;
+        };
+
+        // CVS file
+        var file;
+
+        // Document elements
+        var csv_file = $("#csv_file")[0];
+        var alert_error = $("#aer");
+        var alert_result = $("#ares");
+        var make_good = $("#make_good");
+        var div_lead = $("div.lead");
+        var form = $("form")[0];
+
+        // Update make_good button
+        $('body').on('change', 'input[type=file]', function(){
+            alert_result.addClass("invisible");
+            if (!csv_file.title.endsWith(".csv")) {
+                make_good.addClass("disabled");
+                file = null;
+            }
+            else {
+                make_good.removeClass("disabled");
+                file = csv_file.files[0];
+            }
+        });
+
+        // Show error alert
+        div_lead.mouseover(function(){
+            if (make_good[0].classList.contains("disabled")) {
+                alert_error.removeClass("invisible")
+            }
+        }).mouseout(function(){
+            alert_error.addClass("invisible")
+        });
+
+        // Make statistics for a great good
+        make_good.click(function(){
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = stateChange;
+            xhr.open('POST', '/upload', true);
+            xhr.send(new FormData(form));
+
+            function stateChange() {
+                alert_result.removeClass("invisible");
+                alert_result.removeClass("alert-info");
+                alert_result.removeClass("alert-danger");
+                alert_result.removeClass("alert-success");
+                if (xhr.readyState == 0) {
+                    alert_result.addClass("invisible");
+                }
+                if (xhr.readyState == 2) {
+                    alert_result.addClass("alert-info");
+                    alert_result.html("Сервер думает");
+                }
+                if (xhr.readyState == 3) {
+                    alert_result.addClass("alert-info");
+                    alert_result.html("Получаем данные");
+                }
+                if (xhr.readyState == 4) {
+                    if (xhr.status == 200) {
+                        var data = JSON.parse(xhr.response.toString());
+
+                        if (data.status == "ok") {
+                            alert_result.addClass("alert-success");
+                            alert_result.html("Все готово. Надеемся, Вы будете довольны результатами.<br />" +
+                                              "<a class=\"btn btn-default\" href=\"results?zipfile=" +
+                                              data.filename + "\">Скачать</a>")
+                        }
+                        else {
+                            alert_result.addClass("alert-danger");
+                            alert_result.html("Произошла какая-то обшибка. Сервер говорит что виноват " +
+                            data.reason + ".")
+                        }
+                    }
+                    else {
+                        // Show error
+                        alert_result.addClass("alert-danger");
+                        alert_result.html("Shit happened!");
+                    }
+                }
+            }
+        });
+    });
+</script>
 </body>
 </html>
