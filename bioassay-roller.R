@@ -115,11 +115,11 @@ point.stat.table = function(dose, df.list) {
   mapply(function(a,b) {list(ref=a, test=b)}, ref.points, test.points, SIMPLIFY=F)
 }
 
-board.data = function(rp, test, coef, cdif, rfu, ab) {
-  list.with.names=function(rp, test, coef, cdif, rfu, ab) {
-    list(rp = rp, test=test, coef = coef, cdif = cdif, rfu = rfu, ab=ab)
+board.data = function(rp, test, rcoef, coef, cdif, rfu, ab) {
+  list.with.names=function(rp, test, rcoef, coef, cdif, rfu, ab) {
+    list(rp = rp, test=test, rcoef = rcoef, coef = coef, cdif = cdif, rfu = rfu, ab=ab)
   }
-  mapply(list.with.names, rp, test, coef, cdif, rfu, ab, SIMPLIFY=F)
+  mapply(list.with.names, rp, test, rcoef, coef, cdif, rfu, ab, SIMPLIFY=F)
 }
 
 board.to.file = function(board, file) {
@@ -131,8 +131,11 @@ board.to.file = function(board, file) {
   cat('Test A/D\t')
   write.table(round(board$ab$test,2), dec = ",", sep='\t', col.names=F, row.names=F, quote=F)
   ###
-  cat('Slope, ref/test\t')
+  cat('\nSlope, ref/test\t')
   cat(round(board$coef$ref[1]/board$coef$test[1],2))
+  ###
+  cat('\nR-coefficient, ref', round(board$rcoef$ref,2), sep='\t')
+  cat('\nR-coefficient, test', round(board$rcoef$test,2), sep='\t')
   ###
   cat('\n\tTest result\n')
   write.table(data.frame(board$test), dec = ",", sep='\t', quote=F, col.names=F, row.names=T)
@@ -183,6 +186,11 @@ process = function(input.file, output.dir) {
     })
   }
   )
+  rcoef = lapply(models.for.plot, function(model) {
+    df = cbind(model$data[,c(2,4)], predict(model))
+    colnames(df) = c('values','sample','predict')
+    rco(df)
+  })
   cdif = lapply(coef, function(x) {
     slope = round(abs(x$ref[1] - x$test[1])/mean(x$ref[1],x$test[1]), 2)*100
     lower = round(abs(x$ref[2] - x$test[2])/mean(x$ref[2],x$test[2]), 2)*100
@@ -199,7 +207,7 @@ process = function(input.file, output.dir) {
     s
   }
   )
-  db = board.data(rp, test.result, coef, cdif, rfu, ab)
+  db = board.data(rp, test.result, rcoef, coef, cdif, rfu, ab)
   
   ########
   # OUTPUT
@@ -248,6 +256,40 @@ ggplot.magic = function(model, name) {
           legend.title=element_text(size=25),
           legend.key.size=unit(2, "cm"))
     mp
+}
+
+ggplot.magic.box = function(model, name) {
+  points = model$origData
+  ref.points = model$origData[model$origData$sample == 'ref',c(1,3)]
+  test.points = model$origData[model$origData$sample == 'test',c(1,3)]
+  cf.ref = coef(model)[c(1,3,5,7)]
+  cf.test = coef(model)[c(2,4,6,8)]
+  LP.4 = function(x, B, D, A, C) D + (A-D)/(1+(x/C)^B)
+  LP.4mod <- function(x, ...) LP.4(10^x,... )  # to achieve propper plot
+  dose = unique(points$dose)
+  dddd = model$origData
+  dddd$dose = as.factor(dddd$dose)
+  mp = ggplot(NULL, aes(x=x)) + 
+    geom_boxplot(data = dddd, aes(x=dose, y=response, fill=sample)) +# ref points
+    theme(title = element_text(size=30),
+          axis.text.x = element_text(colour="grey20",size=20,hjust=.5,vjust=.5,face="plain"),
+          axis.text.y = element_text(colour="grey20",size=20,hjust=1,vjust=0,face="plain"),  
+          axis.title.x = element_text(colour="grey20",size=20,hjust=.5,vjust=0,face="plain"),
+          axis.title.y = element_text(colour="grey20",size=20,hjust=.5,vjust=.5,face="plain"),
+          legend.text=element_text(size=25),
+          legend.title=element_text(size=25),
+          legend.key.size=unit(2, "cm"))
+  mp
+}
+
+rco = function(df) {
+  nom.ref = sum((df$values[df$sample=='ref']-df$predict[df$sample=='ref'])^2)
+  denom.ref = sum((df$values[df$sample=='ref'] - mean(df$values[df$sample=='ref']))^2)
+  ref = sqrt(1 - nom.ref/denom.ref)
+  nom.test = sum((df$values[df$sample=='test'] - df$predict[df$sample=='test'])^2)
+  denom.test = sum((df$values[df$sample=='test'] - mean(df$values[df$sample=='test']))^2)
+  test = sqrt(1 - nom.test/denom.test)
+  list(ref=ref, test=test)
 }
 
 args <- commandArgs(trailingOnly = TRUE)
