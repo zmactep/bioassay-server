@@ -2,6 +2,7 @@
 __author__ = 'pavel'
 
 import os
+import time
 import random
 import string
 import zipfile
@@ -21,6 +22,7 @@ UPLOADS = "uploads"
 RESULTS = "results"
 
 RUNS = "runs.txt"
+MASTER_FILE = os.path.join(".git", os.path.join("refs", os.path.join("heads", "master")))
 
 
 class Application(tornado.web.Application):
@@ -49,7 +51,7 @@ class IndexHandler(tornado.web.RequestHandler):
         suffix = ""
         if (runs % 100 < 10 or runs % 100 > 20) and (runs % 10) in [2, 3, 4]:
             suffix = "а"
-        self.render("index.html", runs=runs, suffix=suffix)
+        self.render("index.html", runs=runs, suffix=suffix, update=str(time.ctime(os.path.getmtime(MASTER_FILE))))
 
 
 class Error404(tornado.web.RequestHandler):
