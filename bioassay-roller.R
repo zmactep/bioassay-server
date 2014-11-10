@@ -1,9 +1,8 @@
 library(plyr)
 library(reshape2)
 library(drc)
+library(ggplot2)
 library(sets)
-
-args <- commandArgs(trailingOnly = TRUE)
 
 load.raw = function(file) {
   data = read.table(
@@ -184,18 +183,44 @@ process = function(input.file, output.dir) {
   )
   db = board.data(rp, test.result, coef, rfu, ab)
   
-  ###########
+  ########
   # OUTPUT
-  lapply( names(lapply(db, names)) , function(x) {
-    board.to.file(db[[x]], paste(output.dir, x, '.tsv', sep=''))
-  })
-  
-  # LALALA
-  lapply( names(lapply(models.for.plot, names)) , function(x) {
-    png(filename=paste(output.dir, x, '.png', sep=''))
-    plot(models.for.plot[[x]])
+  for( key in names(db) ) {
+    board.to.file(db[[key]], paste(output.dir, key, '.tsv', sep=''))
+  }
+
+  for( key in names(models.for.plot) ) {
+    png(filename=paste(output.dir, key, '.png', sep=''))
+    plot(ggplot.magic(models.for.plot[[key]], key))
     graphics.off()
-  })
+  }
 }
 
+ggplot.magic = function(model, name) {
+  points = model$origData
+  ref.points = model$origData[model$origData$sample == 'ref',c(1,3)]
+  test.points = model$origData[model$origData$sample == 'test',c(1,3)]
+  cf.ref = coef(model)[c(1,3,5,7)]
+  cf.test = coef(model)[c(2,4,6,8)]
+  LP.4 = function(x, B, D, A, C) D + (A-D)/(1+(x/C)^B)
+  LP.4mod <- function(x, ...) LP.4(10^x,... )  # to achieve propper plot
+  dose = unique(points$dose)
+  
+  mp = ggplot(data.frame(x=dose), aes(x)) + scale_x_log10() + labs (title = name, x='dose', y='response')
+  mp = mp + stat_function(fun = LP.4mod, 
+                          args = list(A = cf.ref[3], B = cf.ref[1], C = cf.ref[4], D = cf.ref[2]), 
+                          color='black') # for ref curve
+  mp = mp + stat_function(fun = LP.4mod, 
+                          args = list(A = cf.test[3], B = cf.test[1], C = cf.test[4], D = cf.test[2]), 
+                          color='red',
+                          linetype='dashed') # for test curve
+  mp = mp + geom_point(data = model$origData, aes(x=dose, y=response), shape = 1, size = 3) # ref points
+  mp = mp + geom_point(data = test.points, aes(x=dose, y=response), shape = 2, size = 3) # test points
+  mp
+  # add legend
+}
+
+args <- commandArgs(trailingOnly = TRUE)
+cat('*** Begin\n')
 process(args[1], args[2])
+cat('*** Done\n')
