@@ -20,6 +20,8 @@ define("port", default=1331, help="run on the given port", type=int)
 UPLOADS = "uploads"
 RESULTS = "results"
 
+RUNS = "runs.txt"
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -39,7 +41,12 @@ class Application(tornado.web.Application):
 
 class IndexHandler(tornado.web.RequestHandler):
     def get(self):
-        self.render("index.html")
+        if os.path.exists(RUNS):
+            with open(RUNS, "rt") as fd:
+                runs = int(fd.readline())
+        else:
+            runs = 0
+        self.render("index.html", runs=runs)
 
 
 class Error404(tornado.web.RequestHandler):
@@ -64,15 +71,27 @@ class UploadHandler(tornado.web.RequestHandler):
         original_fname = csv_file['filename']
         if original_fname.endswith(".csv"):
             print("Yeah! Data is good.")
+            # Update runs
+            if os.path.exists(RUNS):
+                with open(RUNS, "rt") as fd:
+                    runs = int(fd.readline())
+            else:
+                runs = 1
+            with open(RUNS, "wt") as fd:
+                fd.write("%s\n" % (runs + 1))
+            # ***********
             fname = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
             final_filename = "%s-%s" % (fname, original_fname)
             output_file = open(os.path.join(UPLOADS, final_filename), 'w')
             output_file.write(csv_file['body'])
             output_file.close()
             print("Let our monkeys play with data (%s)." % final_filename)
-            resultsZip = monkeyfunction(final_filename)
-            print("Monkeys are tired, let us send the respond.")
-            self.finish('{"status" : "ok", "filename" : "%s"}' % resultsZip)
+            try:
+                resultsZip = monkeyfunction(final_filename)
+                print("Monkeys are tired, let us send the respond.")
+                self.finish('{"status" : "ok", "filename" : "%s"}' % resultsZip)
+            except:
+                self.finish('{"status" : "error", "reason" : "Rscript error"}')
         else:
             print("Data is bad :(")
             self.finish('{"status" : "error", "reason" : "file format"}')
