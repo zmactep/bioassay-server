@@ -3,6 +3,8 @@ library(reshape2)
 library(drc)
 library(ggplot2)
 library(sets)
+library(scales)
+library(grid)
 
 load.raw = function(file) {
   data = read.table(
@@ -104,8 +106,8 @@ point.stat.table = function(dose, df.list) {
   test.point.sd = lapply(df.list, function(x) apply(x$test[,2:4], 1, sd))
   
   merge.mean.sd = function(mean, sd) {
-    res = data.frame(t(rbind(dose, mean, sd, sd/mean)))
-    colnames(res) = c('Dose', 'Mean', 'SD', 'RSD')
+    res = data.frame(t(rbind(dose, mean, sd, sd/mean*100)))
+    colnames(res) = c('Dose', 'Mean', 'SD', 'RSD, %')
     res
   }
   ref.points = mapply(merge.mean.sd, ref.point.mean, ref.point.sd, SIMPLIFY=F)
@@ -113,23 +115,29 @@ point.stat.table = function(dose, df.list) {
   mapply(function(a,b) {list(ref=a, test=b)}, ref.points, test.points, SIMPLIFY=F)
 }
 
-board.data = function(rp, test, coef, rfu, ab) {
-  list.with.names=function(rp, test, coef, rfu, ab) {
-    list(rp = rp, test=test, coef = coef, rfu = rfu, ab=ab)
+board.data = function(rp, test, coef, cdif, rfu, ab) {
+  list.with.names=function(rp, test, coef, cdif, rfu, ab) {
+    list(rp = rp, test=test, coef = coef, cdif = cdif, rfu = rfu, ab=ab)
   }
-  mapply(list.with.names, rp, test, coef, rfu, ab, SIMPLIFY=F)
+  mapply(list.with.names, rp, test, coef, cdif, rfu, ab, SIMPLIFY=F)
 }
 
 board.to.file = function(board, file) {
   sink(file)
   cat('\t')
   write.table(round(as.data.frame(t(board$rp)),2), dec = ",", sep='\t', quote=F, row.names=c('RP'))
-  cat('\nReference A/B\t')
+  cat('\nReference A/D\t')
   write.table(round(board$ab$ref,2), dec = ",", sep='\t', col.names=F, row.names=F, quote=F)
-  cat('Test A/B\t')
+  cat('Test A/D\t')
   write.table(round(board$ab$test,2), dec = ",", sep='\t', col.names=F, row.names=F, quote=F)
+  ###
+  cat('Slope, ref/test\t')
+  cat(round(board$coef$ref[1]/board$coef$test[1],2))
+  ###
   cat('\n\tTest result\n')
   write.table(data.frame(board$test), dec = ",", sep='\t', quote=F, col.names=F, row.names=T)
+  cat('\nDelta for model\t')
+  write.table(round(board$cdif,2), dec = ",", sep='\t', quote=F, row.names=T)
   cat('\nReference model params\n')
   cat('Coef\t')
   write.table(round(board$coef$ref,2), dec = ",", sep='\t', quote=F, row.names=T)
@@ -144,7 +152,7 @@ board.to.file = function(board, file) {
 }
 
 process = function(input.file, output.dir) {
-  dose = rev(c(100, 5, 2, 1, 0.5 , 0.25 , 0.1 , 0.05, 0.01, 0))
+  dose = rev(c(100, 5, 2, 1, 0.5 , 0.25 , 0.1 , 0.05, 0.01, 0.0001))
   file = input.file
   df.list = data.list.from.file(file, dose)
   melt.df = lapply(df.list, melt.comparable.df)
@@ -152,8 +160,8 @@ process = function(input.file, output.dir) {
   ##########################
   ## to board result data
   rp = lapply(lapply(lapply(melt.df, merged.model), SI, c(50,50), display=F), function(x) {
-      s = c(x[,1:2], x[,2]/x[,1])
-      names(s) = c('Mean', 'SD', 'RSD')
+      s = c(x[,1:2], x[,2]/x[,1]*100)
+      names(s) = c('Mean', 'SD', 'RSD, %')
       s
     }
   )
@@ -168,20 +176,30 @@ process = function(input.file, output.dir) {
   }, f.test, eq.test, SIMPLIFY=F)
   coef = lapply(models, function(x) {
     s = lapply(lapply(x, summary), function(x) x$coefficients[,1:2])
-    s = lapply(s[1:2], function(x) cbind(x, RSD = x[,2]/x[,1]))
+    s = lapply(s[1:2], function(x) cbind(x, RSD = x[,2]/x[,1]*100))
     s = lapply(s, function(z) {
-      colnames(z) = c('Mean', 'SD', 'RSD')
+      colnames(z) = c('Mean', 'SD', 'RSD, %')
       z
     })
   }
   )
+  cdif = lapply(coef, function(x) {
+    slope = round(abs(x$ref[1] - x$test[1])/mean(x$ref[1],x$test[1]), 2)*100
+    lower = round(abs(x$ref[2] - x$test[2])/mean(x$ref[2],x$test[2]), 2)*100
+    upper = round(abs(x$ref[3] - x$test[3])/mean(x$ref[3],x$test[3]), 2)*100
+    ed = round(abs(x$ref[4] - x$test[4])/mean(x$ref[4],x$test[4]), 2)*100
+    res = matrix(nrow=4, c(slope, lower, upper, ed))
+    rownames(res) = rownames(x$ref)
+    colnames(res) = c('Delta, %')
+    res
+  })
   ab = lapply(coef, lapply, function(x) {
-    s = data.frame(x[1,3]/x[1,2])
-    colnames(s) = c('A/B')
+    s = data.frame(x[3,1]/x[2,1])
+    colnames(s) = c('A/D')
     s
   }
   )
-  db = board.data(rp, test.result, coef, rfu, ab)
+  db = board.data(rp, test.result, coef, cdif, rfu, ab)
   
   ########
   # OUTPUT
@@ -190,7 +208,7 @@ process = function(input.file, output.dir) {
   }
 
   for( key in names(models.for.plot) ) {
-    png(filename=paste(output.dir, key, '.png', sep=''))
+    png(width = 1920, height = 1080, filename=paste(output.dir, key, '.png', sep=''))
     plot(ggplot.magic(models.for.plot[[key]], key))
     graphics.off()
   }
@@ -205,10 +223,12 @@ ggplot.magic = function(model, name) {
   LP.4 = function(x, B, D, A, C) D + (A-D)/(1+(x/C)^B)
   LP.4mod <- function(x, ...) LP.4(10^x,... )  # to achieve propper plot
   dose = unique(points$dose)
-  
-  mp = ggplot(data.frame(x=dose), aes(x=x)) + 
-    scale_x_log10() +
-    labs (title = name, x='Dose, mug/ml', y='Response, RFU') +
+
+  mp = ggplot(NULL, aes(x=x)) + 
+    scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                  labels = trans_format("log10", math_format(10^.x)),
+                  limits = c(0.0001, 1000)) +
+    labs (title=name, x='Log Dose, mug/ml', y='Response, RFU') +
     stat_function(fun = LP.4mod,
                   data = data.frame(x = dose, Sample = factor(1)),
                   args = list(A = cf.ref[3], B = cf.ref[1], C = cf.ref[4], D = cf.ref[2]), 
@@ -218,9 +238,16 @@ ggplot.magic = function(model, name) {
                   args = list(A = cf.test[3], B = cf.test[1], C = cf.test[4], D = cf.test[2]), 
                   colour = "deepskyblue3",
                   linetype='dashed') + # for test curve
-    geom_point(data = model$origData, aes(x=dose, y=response, color=sample, shape=sample), size=5) # ref points
-  mp
-  # add legend
+    geom_point(data = model$origData, aes(x=dose, y=response, color=sample, shape=sample), size=5) +# ref points
+    theme(title = element_text(size=30),
+          axis.text.x = element_text(colour="grey20",size=20,hjust=.5,vjust=.5,face="plain"),
+          axis.text.y = element_text(colour="grey20",size=20,hjust=1,vjust=0,face="plain"),  
+          axis.title.x = element_text(colour="grey20",size=20,hjust=.5,vjust=0,face="plain"),
+          axis.title.y = element_text(colour="grey20",size=20,hjust=.5,vjust=.5,face="plain"),
+          legend.text=element_text(size=25),
+          legend.title=element_text(size=25),
+          legend.key.size=unit(2, "cm"))
+    mp
 }
 
 args <- commandArgs(trailingOnly = TRUE)
