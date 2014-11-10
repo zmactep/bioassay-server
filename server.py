@@ -46,7 +46,10 @@ class IndexHandler(tornado.web.RequestHandler):
                 runs = int(fd.readline())
         else:
             runs = 0
-        self.render("index.html", runs=runs)
+        suffix = ""
+        if (runs % 100 < 10 or runs % 100 > 20) and (runs % 10) in [2, 3, 4]:
+            suffix = "а"
+        self.render("index.html", runs=runs, suffix=suffix)
 
 
 class Error404(tornado.web.RequestHandler):
