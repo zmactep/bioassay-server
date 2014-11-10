@@ -206,16 +206,19 @@ ggplot.magic = function(model, name) {
   LP.4mod <- function(x, ...) LP.4(10^x,... )  # to achieve propper plot
   dose = unique(points$dose)
   
-  mp = ggplot(data.frame(x=dose), aes(x)) + scale_x_log10() + labs (title = name, x='dose', y='response')
-  mp = mp + stat_function(fun = LP.4mod, 
-                          args = list(A = cf.ref[3], B = cf.ref[1], C = cf.ref[4], D = cf.ref[2]), 
-                          color='black') # for ref curve
-  mp = mp + stat_function(fun = LP.4mod, 
-                          args = list(A = cf.test[3], B = cf.test[1], C = cf.test[4], D = cf.test[2]), 
-                          color='red',
-                          linetype='dashed') # for test curve
-  mp = mp + geom_point(data = model$origData, aes(x=dose, y=response), shape = 1, size = 3) # ref points
-  mp = mp + geom_point(data = test.points, aes(x=dose, y=response), shape = 2, size = 3) # test points
+  mp = ggplot(data.frame(x=dose), aes(x=x)) + 
+    scale_x_log10() +
+    labs (title = name, x='Dose, mug/ml', y='Response, RFU') +
+    stat_function(fun = LP.4mod,
+                  data = data.frame(x = dose, Sample = factor(1)),
+                  args = list(A = cf.ref[3], B = cf.ref[1], C = cf.ref[4], D = cf.ref[2]), 
+                  colour = "red") + # for ref curve
+    stat_function(fun = LP.4mod,
+                  data = data.frame(x = dose, Sample = factor(2)),
+                  args = list(A = cf.test[3], B = cf.test[1], C = cf.test[4], D = cf.test[2]), 
+                  colour = "deepskyblue3",
+                  linetype='dashed') + # for test curve
+    geom_point(data = model$origData, aes(x=dose, y=response, color=sample, shape=sample), size=5) # ref points
   mp
   # add legend
 }
