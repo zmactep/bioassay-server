@@ -76,9 +76,9 @@ f.parallel.test = function(model.set) {
   f = ((SRSS-RSS)/(SDF-DF))/(RSS/DF)
   p = pf(f, SDF-DF,DF)
   if(p>0.95)
-    'FAIL'
+    paste('FAIL', 'p-value', round(p, 2), sep='\t')
   else
-    'PASS'
+    paste('PASS', 'p-value', round(p, 2), sep='\t')
 }
 
 eq.parallel.test = function(model.set) {
@@ -106,7 +106,7 @@ point.stat.table = function(dose, df.list) {
   test.point.sd = lapply(df.list, function(x) apply(x$test[,2:4], 1, sd))
   
   merge.mean.sd = function(mean, sd) {
-    res = data.frame(t(rbind(dose, mean, sd, sd/mean*100)))
+    res = data.frame(t(rbind(dose, mean, sd, round(sd/mean*100,0))))
     colnames(res) = c('Dose', 'Mean', 'SD', 'RSD, %')
     res
   }
@@ -160,7 +160,7 @@ process = function(input.file, output.dir) {
   ##########################
   ## to board result data
   rp = lapply(lapply(lapply(melt.df, merged.model), SI, c(50,50), display=F), function(x) {
-      s = c(x[,1:2], x[,2]/x[,1]*100)
+      s = c(x[,1:2], round(x[,2]/x[,1]*100, 0))
       names(s) = c('Mean', 'SD', 'RSD, %')
       s
     }
@@ -171,12 +171,12 @@ process = function(input.file, output.dir) {
   rfu = point.stat.table(dose, df.list)
   test.result = mapply(function(a,b) {
     s = c(a, b)
-    names(s) = c('F-test','Equivalence test')
+    names(s) = c('F-test', 'Equivalence test')
     s
   }, f.test, eq.test, SIMPLIFY=F)
   coef = lapply(models, function(x) {
     s = lapply(lapply(x, summary), function(x) x$coefficients[,1:2])
-    s = lapply(s[1:2], function(x) cbind(x, RSD = x[,2]/x[,1]*100))
+    s = lapply(s[1:2], function(x) cbind(x, RSD = round(x[,2]/x[,1]*100,0)))
     s = lapply(s, function(z) {
       colnames(z) = c('Mean', 'SD', 'RSD, %')
       z
