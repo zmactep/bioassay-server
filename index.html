@@ -31,7 +31,7 @@
                 </p>
                 <div align="center">
                     <form method="post" action="/upload" enctype="multipart/form-data">
-                        <input type="file" id="csv_file" name="csv_file" data-filename-placement="inside" />
+                        <input type="file" id="zip_file" name="zip_file" data-filename-placement="inside" />
                     </form>
                 </div>
                 <br />
@@ -82,7 +82,7 @@
         body.on('change', 'input[type=file]', function(){
             serverRun = false;
             alert_result.addClass("invisible");
-            if (!csv_file.title.endsWith(".csv")) {
+            if (!csv_file.title.endsWith(".zip")) {
                 make_good.addClass("disabled");
                 file = null;
             }
@@ -96,7 +96,7 @@
         div_lead.mouseover(function(){
             if (make_good[0].classList.contains("disabled")) {
                 if (!serverRun) {
-                    alert_error.html("Файл не выбран или не является CSV")
+                    alert_error.html("Файл не выбран или не является ZIP-архивом")
                 }
                 else {
                     alert_error.html("Проявите терпение, сервер скоро закончит думать")
@@ -149,7 +149,7 @@
                     else {
                         // Show error
                         alert_result.addClass("alert-danger");
-                        alert_result.html("Shit happened!");
+                        alert_result.html("Server error: " + xhr.status);
                     }
                 }
             }

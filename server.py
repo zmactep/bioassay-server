@@ -72,24 +72,19 @@ class DownloadHandler(tornado.web.RequestHandler):
 class UploadHandler(tornado.web.RequestHandler):
     def post(self):
         print("Hey-hey-hey! New data arived!")
-        csv_file = self.request.files['csv_file'][0]
-        original_fname = csv_file['filename']
-        if original_fname.endswith(".csv"):
-            print("Yeah! Data is good.")
-            # Update runs
-            if os.path.exists(RUNS):
-                with open(RUNS, "rt") as fd:
-                    runs = int(fd.readline())
-            else:
-                runs = 1
-            with open(RUNS, "wt") as fd:
-                fd.write("%s\n" % (runs + 1))
-            # ***********
-            fname = ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6))
-            final_filename = "%s-%s" % (fname, original_fname)
-            output_file = open(os.path.join(UPLOADS, final_filename), 'w')
-            output_file.write(csv_file['body'])
+        zip_file = self.request.files['zip_file'][0]
+        original_fname = zip_file['filename']
+        if original_fname.endswith(".zip"):
+            print("Yeah! Data is zip.")
+            updateruns()
+            final_filename = "%s-%s" % \
+                             (''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(6)),
+                              original_fname)
+
+            output_file = open(os.path.join(UPLOADS, final_filename), 'wb')
+            output_file.write(zip_file['body'])
             output_file.close()
+
             print("Let our monkeys play with data (%s)." % final_filename)
             try:
                 resultsZip = monkeyfunction(final_filename)
@@ -102,11 +97,39 @@ class UploadHandler(tornado.web.RequestHandler):
             self.finish('{"status" : "error", "reason" : "file format"}')
 
 
+def read_config(config_path):
+    return 1
+
+
+def read_data_from(raw_path, config):
+    return 1
+
+
+def write_data_to(data, file_path):
+    return
+
+
 def monkeyfunction(fname):
-    file_path = os.path.join(UPLOADS, fname)
+    zipfile_path = os.path.join(UPLOADS, fname)
     basename = os.path.splitext(fname)[0]
+    unzip_dir = os.path.join(UPLOADS, basename)
     results_dir = os.path.join(RESULTS, basename)
     os.mkdir(results_dir)
+
+    inzip = zipfile.ZipFile(zipfile_path, 'r')
+    inzip.extractall(unzip_dir)
+
+    config_path = os.path.join(unzip_dir, "config.csv")
+    config = read_config(config_path)
+
+    data = []
+    for f in os.listdir(unzip_dir):
+        raw_path = os.path.join(unzip_dir, f)
+        if raw_path != config_path:
+            data.append(read_data_from(raw_path, config))
+
+    file_path = os.path.join(results_dir, "%s.csv" % basename)
+    write_data_to(data, file_path)
 
     # Your logic here
     command = "Rscript bioassay-roller.R %s %s/" % (os.path.abspath(file_path), os.path.abspath(results_dir))
@@ -118,9 +141,6 @@ def monkeyfunction(fname):
     except:
         print("Rscript internal error")
 
-    # Copy input data too
-    shutil.copy(file_path, os.path.join(results_dir, os.path.basename(file_path)))
-
     results_zip = "%s.zip" % basename
     curdir = os.path.abspath(os.path.curdir)
     os.chdir(RESULTS)
@@ -129,6 +149,16 @@ def monkeyfunction(fname):
     zipf.close()
     os.chdir(curdir)
     return os.path.join(RESULTS, results_zip)
+
+
+def updateruns():
+    if os.path.exists(RUNS):
+        with open(RUNS, "rt") as fd:
+            runs = int(fd.readline())
+    else:
+        runs = 1
+    with open(RUNS, "wt") as fd:
+        fd.write("%s\n" % (runs + 1))
 
 
 def sendfile(self, file_name):
