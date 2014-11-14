@@ -8,7 +8,6 @@ import csv
 import random
 import string
 import zipfile
-import shutil
 from iterpipes import cmd, run
 
 import tornado.httpserver
@@ -27,6 +26,7 @@ RUNS = "runs.txt"
 MASTER_FILE = os.path.join(".git", os.path.join("refs", os.path.join("heads", "master")))
 
 PATTERN = re.compile("^[B-G][^\\d]*(" + "\\s".join("\\d+(?:(?:\\.|\\,)\\d+)?" for _ in range(10)) + ").*")
+
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -94,6 +94,7 @@ class UploadHandler(tornado.web.RequestHandler):
                 print("Monkeys are tired, let us send the respond.")
                 self.finish('{"status" : "ok", "filename" : "%s"}' % resultsZip)
             except:
+                print("Shit happend!")
                 self.finish('{"status" : "error", "reason" : "Rscript error"}')
         else:
             print("Data is bad :(")
@@ -164,9 +165,20 @@ def monkeyfunction(fname):
 
     inzip = zipfile.ZipFile(zipfile_path, 'r')
     inzip.extractall(unzip_dir)
+    print("Zip extracted")
 
-    config_path = os.path.join(unzip_dir, "config.csv")
-    config = read_config(config_path)
+    first_unzip = os.path.join(unzip_dir, list(filter(lambda x: not x.startswith("."), os.listdir(unzip_dir)))[0])
+    if os.path.isdir(first_unzip):
+        unzip_dir = first_unzip
+    print(unzip_dir)
+
+    try:
+        config_path = os.path.join(unzip_dir, "config.csv")
+        config = read_config(config_path)
+    except:
+        print("Config was not found")
+        raise False
+    print("Config found")
 
     data = []
     for f in os.listdir(unzip_dir):
