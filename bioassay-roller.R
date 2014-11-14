@@ -6,8 +6,52 @@ library(sets)
 library(scales)
 library(grid)
 
+split.monkey.data = function(md) {
+  buf = read.table(textConnection(md), sep=';', skip=1)
+  dose=as.numeric(buf[1,-1])
+  buf = buf[-1,]
+  buf[,1] = as.factor(buf[,1])
+  df.split = dlply(buf, 1)
+  df.split = lapply(df.split, function(x) {
+    x[,1] <- NULL
+    x  
+  })
+  # REMOVE TO FIX MULTIPLE SAMPLES
+  #################################
+  names(df.split) = c('ref','test')
+  #################################
+  df.split = lapply(df.split, function(x) {
+    smp = data.frame(t(rbind(dose, x)))
+    colnames(smp) = c('dose', paste('x', c(1:nrow(x)), sep=''))
+    rownames(smp) = NULL
+    smp
+  })
+  res = df.split
+  attr(res, 'name') <- strsplit(md[1], ";")[[1]][2]  # save the name
+  res
+}
+
+load.parsed = function(file) {
+  x = readLines(file(file))
+  closeAllConnections()
+  start = grep("^sample;(.+\\.\\w+)$", x)
+  mark = vector('integer', length(x))
+  mark[start] = 1
+  # determine limits of each table
+  mark = cumsum(mark)
+  # split the data for reading
+  df = lapply(split(x, mark), split.monkey.data)
+  # rename the list
+  names(df) = sapply(df, attr, 'name')
+  df = lapply(df, function(x) {
+    attr(x, "name") = NULL
+    x
+  })
+  df
+}
+
 load.raw = function(file) {
-  data = read.table(
+  data = read.csv(
     file=file,
     sep=';',
     header=F,
@@ -99,14 +143,14 @@ eq.parallel.test = function(model.set) {
     'FAIL'
 }
 
-point.stat.table = function(dose, df.list) {
-  ref.point.mean = lapply(df.list, function(x) apply(x$ref[,2:4], 1, mean))
-  ref.point.sd = lapply(df.list, function(x) apply(x$ref[,2:4], 1, sd))
-  test.point.mean = lapply(df.list, function(x) apply(x$test[,2:4], 1, mean))
-  test.point.sd = lapply(df.list, function(x) apply(x$test[,2:4], 1, sd))
+point.stat.table = function(df.list) {
+  ref.point.mean = lapply(df.list, function(x) apply(x$ref[,-1], 1, mean))
+  ref.point.sd = lapply(df.list, function(x) apply(x$ref[,-1], 1, sd))
+  test.point.mean = lapply(df.list, function(x) apply(x$test[,-1], 1, mean))
+  test.point.sd = lapply(df.list, function(x) apply(x$test[,-1], 1, sd))
   
   merge.mean.sd = function(mean, sd) {
-    res = data.frame(t(rbind(dose, mean, sd, round(sd/mean*100,0))))
+    res = data.frame(t(rbind(df.list[[1]]$ref[,1], mean, sd, round(sd/mean*100,0))))
     colnames(res) = c('Dose', 'Mean', 'SD', 'RSD, %')
     res
   }
@@ -155,9 +199,8 @@ board.to.file = function(board, file) {
 }
 
 process = function(input.file, output.dir) {
-  dose = rev(c(100, 5, 2, 1, 0.5 , 0.25 , 0.1 , 0.05, 0.01, 0.0001))
   file = input.file
-  df.list = data.list.from.file(file, dose)
+  df.list = load.parsed(file)
   melt.df = lapply(df.list, melt.comparable.df)
   models = lapply(melt.df, drm.model)
   ##########################
@@ -171,7 +214,7 @@ process = function(input.file, output.dir) {
   f.test = lapply(models, f.parallel.test)
   eq.test = lapply(models, eq.parallel.test)
   models.for.plot = lapply(melt.df, merged.model)
-  rfu = point.stat.table(dose, df.list)
+  rfu = point.stat.table(df.list)
   test.result = mapply(function(a,b) {
     s = c(a, b)
     names(s) = c('F-test', 'Equivalence test')
@@ -270,7 +313,20 @@ ggplot.magic.box = function(model, name) {
   dddd = model$origData
   dddd$dose = as.factor(dddd$dose)
   mp = ggplot(NULL, aes(x=x)) + 
-    geom_boxplot(data = dddd, aes(x=dose, y=response, fill=sample)) +# ref points
+#    scale_x_log10(breaks = trans_breaks("log10", function(x) 10^x),
+#                  labels = trans_format("log10", math_format(10^.x)),
+#                  limits = c(0.0001, 1000)) +
+    labs (title=name, x='Log Dose, mug/ml', y='Response, RFU') +
+    stat_function(fun = LP.4mod,
+                  data = data.frame(x = dose, Sample = factor(1)),
+                  args = list(A = cf.ref[3], B = cf.ref[1], C = cf.ref[4], D = cf.ref[2]), 
+                  colour = "red") + # for ref curve
+    stat_function(fun = LP.4mod,
+                  data = data.frame(x = dose, Sample = factor(2)),
+                  args = list(A = cf.test[3], B = cf.test[1], C = cf.test[4], D = cf.test[2]), 
+                  colour = "deepskyblue3",
+                  linetype='dashed') + # for test curve
+    geom_boxplot(data = dddd, aes(x=dose, y=response, fill=sample)) + # ref boxes
     theme(title = element_text(size=30),
           axis.text.x = element_text(colour="grey20",size=20,hjust=.5,vjust=.5,face="plain"),
           axis.text.y = element_text(colour="grey20",size=20,hjust=1,vjust=0,face="plain"),  
