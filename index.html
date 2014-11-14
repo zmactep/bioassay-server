@@ -70,7 +70,7 @@
 
         // Document elements
         var body = $('body');
-        var csv_file = $("#csv_file")[0];
+        var zip_file = $("#zip_file")[0];
         var alert_error = $("#aer");
         var alert_result = $("#ares");
         var make_good = $("#make_good");
@@ -82,13 +82,14 @@
         body.on('change', 'input[type=file]', function(){
             serverRun = false;
             alert_result.addClass("invisible");
-            if (!csv_file.title.endsWith(".zip")) {
+            if (!zip_file.title.endsWith(".zip")) {
+            	console.log("Shit!")
                 make_good.addClass("disabled");
                 file = null;
             }
             else {
                 make_good.removeClass("disabled");
-                file = csv_file.files[0];
+                file = zip_file.files[0];
             }
         });
 
