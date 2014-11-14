@@ -2,7 +2,9 @@
 __author__ = 'pavel'
 
 import os
+import re
 import time
+import csv
 import random
 import string
 import zipfile
@@ -24,6 +26,7 @@ RESULTS = "results"
 RUNS = "runs.txt"
 MASTER_FILE = os.path.join(".git", os.path.join("refs", os.path.join("heads", "master")))
 
+PATTERN = re.compile("^[B-G][^\\d]*(" + "\\s".join("\\d+(?:(?:\\.|\\,)\\d+)?" for _ in range(10)) + ").*")
 
 class Application(tornado.web.Application):
     def __init__(self):
@@ -98,14 +101,57 @@ class UploadHandler(tornado.web.RequestHandler):
 
 
 def read_config(config_path):
-    return 1
+    config = []
+    with open(config_path) as config_file:
+        config_reader = csv.reader(config_file, delimiter=';')
+        for i, row in enumerate(config_reader):
+            cnc = list()
+            for c in row[1:]:
+                cnc.append(float(c))
+            config.append((row[0], cnc))
+    return config
 
 
 def read_data_from(raw_path, config):
-    return 1
+    cocoa = {}
+    cnc = sorted(config[0][1])
+    cocoa["dose"] = cnc
+    cocoa["name"] = os.path.basename(raw_path)
+    # concentration low -> high
+    with open(raw_path, "rt") as fd:
+        i = 0
+        for line in fd:
+            line = line
+            eline = "\t".join(line.strip().split()[:12])
+            result = PATTERN.search(eline)
+            if result and i < 6:
+                data = result.group(1).split()
+                for p, d in enumerate(data):
+                    data[p] = float(d)
+                if config[i][0] not in cocoa.keys():
+                    cocoa[config[i][0]] = list()
+                corder = list()
+                for apple in config[i][1]:
+                    corder.append(cnc.index(apple))
+                data = [data[ci] for ci in corder]
+                cocoa[config[i][0]].append(data)
+                i += 1
+    return cocoa
 
 
 def write_data_to(data, file_path):
+    with open(file_path, 'wb') as fp:
+        writer = csv.writer(fp, delimiter=";")
+        for ds in data:
+            writer.writerow(["sample", ds["name"]])
+            writer.writerow([""] + ds["dose"])
+            ds.pop("name")
+            ds.pop("dose")
+            # write sample after sample
+            for sample, values in ds.iteritems():
+                for row in values:
+                    writer.writerow([sample] + row)
+        fp.close()
     return
 
 
